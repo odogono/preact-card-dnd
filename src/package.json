@@ -1,0 +1,17 @@
+{
+  "name": "card-dnd",
+  "version": "1.0.0",
+  "description": "",
+  "keywords": [],
+  "homepage": "https://codesandbox.io/s/ko074ol165",
+  "main": "index.js",
+  "dependencies": {
+    "preact": "8.2.5",
+    "preact-compat": "3.17.0",
+    "preact-transition-group": "1.1.1",
+    "raf-schd": "2.1.1",
+    "react-draggable": "3.0.5",
+    "react-motion": "0.5.2",
+    "unistore": "3.0.4"
+  }
+}

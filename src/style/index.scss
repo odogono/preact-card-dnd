@@ -1,0 +1,41 @@
+html,
+body {
+  font: 14px/1.21 "Helvetica Neue", arial, sans-serif;
+  font-weight: 400;
+  color: #444;
+  background-color: limegreen;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1 {
+  text-align: center;
+}
+
+.card-table {
+  margin: 80px;
+  padding: 20px;
+  border: 1px dashed green;
+  min-height: 20em;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-around;
+
+  .card {
+    box-sizing: border-box;
+    position: absolute;
+  }
+
+  .placeholder {
+    box-sizing: border-box;
+    border: 2px dashed green;
+    width: 90px;
+    height: 125px;
+    margin: 20px;
+  }
+
+  .highlight {
+    border: 8px dashed red;
+  }
+}
