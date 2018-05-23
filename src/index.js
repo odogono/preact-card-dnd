@@ -2,8 +2,6 @@ import "./style";
 import { Component, render } from "preact";
 import { Card } from "./card";
 import Placeholder from "./placeholder";
-import { Provider, connect } from "unistore/preact";
-import { store } from "./state";
 import { CardTable } from "./card_table";
 
 import { withDragAndDrop } from "./with_dnd";
@@ -67,18 +65,16 @@ export default class App extends Component {
     // returns before it is able to obtain said clientRect.
 
     return (
-      <Provider store={store}>
-        <div>
-          <h1>Card DND</h1>
-          <CardTable
-            onMouseDown={this._onCardTableMouseDown}
-            onBoundingClientRectUpdate={this._updateCardTable}
-          >
-            {cards}
-            {placeholders}
-          </CardTable>
-        </div>
-      </Provider>
+      <div>
+        <h1>Card DND</h1>
+        <CardTable
+          onMouseDown={this._onCardTableMouseDown}
+          onBoundingClientRectUpdate={this._updateCardTable}
+        >
+          {cards}
+          {placeholders}
+        </CardTable>
+      </div>
     );
   }
 

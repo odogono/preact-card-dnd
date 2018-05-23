@@ -1,6 +1,4 @@
 import { Component, PureComponent } from "preact";
-import { connect } from "unistore/preact";
-import { actions } from "./state";
 import { withBoundingClientRect } from "./bounding_client_rect";
 
 class CardTableComponent extends Component {
@@ -34,6 +32,4 @@ class CardTableComponent extends Component {
   }
 }
 
-export const CardTable = connect(["tableDims", "isVisible"], actions)(
-  withBoundingClientRect(CardTableComponent)
-);
+export const CardTable = withBoundingClientRect(CardTableComponent);
