@@ -1,4 +1,7 @@
 import { Component } from "preact";
+import { createLog } from "./util";
+
+const log = createLog("BoundingClientRectComponent");
 
 export function withBoundingClientRect(WrappedComponent) {
   return class extends Component {
@@ -21,12 +24,7 @@ export function withBoundingClientRect(WrappedComponent) {
       this.boundingClientRect = boundingClientRect;
       // let boundingClientRectP = [...boundingClientRect];
 
-      console.log(
-        "[BoundingClientRectComponent][_updateDimensions]",
-        boundingClientRect,
-        this.base,
-        parent
-      );
+      // log("_updateDimensions", boundingClientRect, this.base, parent);
 
       this.setState({ boundingClientRect });
 

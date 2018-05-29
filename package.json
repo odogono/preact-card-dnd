@@ -1,11 +1,12 @@
 {
   "name": "card-dnd",
-  "description": null,
+  "description": "demonstrates (manual) drag and drop with react components.",
   "version": "0.0.199",
   "dependencies": {
     "preact": "8.2.5",
     "preact-compat": "3.17.0",
-    "raf-schd": "2.1.2"
+    "raf-schd": "2.1.2",
+    "tiny-emitter": "2.0.2"
   },
   "devDependencies": {
     "eslint": "^4.5.0",
@@ -28,5 +29,6 @@
   },
   "eslintConfig": {
     "extends": "eslint-config-synacor"
-  }
+  },
+  "keywords": []
 }

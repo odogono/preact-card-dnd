@@ -1,38 +1,82 @@
 import { Component } from "preact";
 import { withBoundingClientRect } from "./bounding_client_rect";
+import { createLog, isPositionValid } from "./util";
 
 export const CARD_WIDTH = 90;
 export const CARD_HEIGHT = 125;
 export const CARD_HALF_WIDTH = CARD_WIDTH / 2;
 export const CARD_HALF_HEIGHT = CARD_HEIGHT / 2;
 
+const log = createLog("Card");
+
 class CardComponent extends Component {
-  componentDidUpdate(previousProps) {}
+  _onTransitionEnd = evt => {
+    // clear the transition here so that further DOM manipulations are not affected
+    this.base.style.transition = "transform 0s";
+  };
+
+  componentDidUpdate(previousProps) {
+    // see https://medium.com/developers-writing/animating-the-unanimatable-1346a5aab3cd
+    // see https://aerotwist.com/blog/flip-your-animations/#the-general-approach
+    this._performAnimation(previousProps);
+  }
+
+  _performAnimation(previousProps) {
+    const { transitionPosition } = this.props;
+    if (!isPositionValid(transitionPosition)) {
+      return;
+    }
+
+    // let [px, py] = _mapPosition(previousProps.position);
+    let [px, py] = _mapPosition(transitionPosition);
+    let pos = _mapPosition(this.props.position);
+    // let pos = _mapPosition(this.props.target);
+
+    // log("_performAnimation", "from", transitionPosition, [px, py], "to", pos);
+
+    let deltaX = px - pos[0];
+    let deltaY = py - pos[1];
+
+    if (deltaX === 0 && deltaY === 0) {
+      return;
+    }
+
+    // log("_performAnimation", "delta", deltaX, deltaY, this.props);
+    const domNode = this.base;
+
+    const delay = this.props.delay || 0;
+    const time = this.props.time || 250;
+
+    requestAnimationFrame(() => {
+      // first update moves the card back to its original position
+      // console.log("[Card][componentDidUpdate]", "pPos", pPos);
+      domNode.style.transform = `translate3d(${px}px, ${py}px, 0)`;
+      domNode.style.transition = "transform 0s";
+
+      requestAnimationFrame(() => {
+        // next update animates the card to its new position
+        // console.log("[Card][componentDidUpdate]", "pos", pos);
+        domNode.style.transform = `translate3d(${pos[0]}px, ${pos[1]}px, 0)`;
+        domNode.style.transition = `transform ${time}ms ease-out ${delay}ms`;
+      });
+    });
+  }
 
   render() {
-    const { onClick } = this.props;
-
-    const scale = this.props.scale || 1.0;
-    // let position = this.props.position || [0, 0];
+    const { onClick, position, scale = 1.0 } = this.props;
 
     const width = CARD_WIDTH * scale;
     const height = CARD_HEIGHT * scale;
 
-    // // to ensure the origin is around the center
-    // position[0] = position[0] - width / 2 + CARD_HALF_WIDTH;
-    // position[1] = position[1] - height / 2 + CARD_HALF_HEIGHT;
-
-    let position = _mapPosition(this.props.position, this.props.scale);
-
-    // console.log("[Card][render]", position);
+    let [mx, my] = _mapPosition(position, scale);
 
     const style = {
       width,
       height,
       left: 0,
       top: 0,
-      WebkitTransform: `translate3d(${position[0]}px, ${position[1]}px, 0)`,
-      transform: `translate3d(${position[0]}px, ${position[1]}px, 0)`
+      WebkitTransform: `translate3d(${mx}px, ${my}px, 0)`,
+      transform: `translate3d(${mx}px, ${my}px, 0)`
     };
 
     const viewBox = [0, 0, 90, 125];
@@ -43,6 +87,7 @@ class CardComponent extends Component {
         className="card"
         style={{ ...style, cursor: "move" }}
         onClick={evt => (onClick ? onClick.call(onClick, this, evt) : null)}
+        onTransitionEnd={this._onTransitionEnd}
       >
         <PureCard viewBox={viewBox} />
       </div>

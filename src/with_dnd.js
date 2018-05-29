@@ -1,6 +1,17 @@
 import { Component } from "preact";
 import { mapPosition } from "./card";
 import rafSchedule from "raf-schd";
+import {
+  addClass,
+  createLog,
+  findParentWithClass,
+  removeClass,
+  updateTransform,
+  valueInRange
+} from "./util";
+import { emitter } from "./events";
+
+const log = createLog("withDragAndDrop", false);
 
 const INTERSECTION_FPS = 10;
 
@@ -12,31 +23,34 @@ export function withDragAndDrop(WrappedComponent, options = {}) {
       document.addEventListener("mousemove", this.onMouseMove);
       document.addEventListener("mouseup", this.onMouseUp);
 
-      log("onMouseDown", "props are", this.props);
+      // log("onMouseDown", "props are", this.props);
 
       const box = this.base.getBoundingClientRect();
-      const parentRect = this.base.parentNode.getBoundingClientRect();
       const { pageX, pageY } = evt;
 
       // capture the point at which we touched
       this.offX = pageX - box.x;
       this.offY = pageY - box.y;
-      let parentX = 0; //parentRect.left - 3;
-      let parentY = 0; //parentRect.top - 3;
 
-      this.relX = pageX - parentX - this.offX;
-      this.relY = pageY - parentY - this.offY;
+      this.relX = pageX - this.offX;
+      this.relY = pageY - this.offY;
 
       this.dragPosition = [this.relX, this.relY];
 
-      this.scheduleUpdate(this.base, this.relX, this.relY);
+      // this.scheduleUpdateTransform(this.base, this.relX, this.relY);
+
       evt.preventDefault();
 
+      // determine the element we return to, and also viable drop targets
       let { homeElement, dropTargets } = initialiseDropTargets(
         this.base,
         parentContainerClass,
         dropTargetClass
       );
+
+      this.homeElement = homeElement;
+
+      log("onMouseDown", "home is", homeElement.id, homeElement);
 
       this.cancelIntersectionCheck = runIntersectionCheck(
         this.base,
@@ -49,37 +63,38 @@ export function withDragAndDrop(WrappedComponent, options = {}) {
       document.removeEventListener("mousemove", this.onMouseMove);
       document.removeEventListener("mouseup", this.onMouseUp);
 
-      console.log(
-        "onMouseDown",
-        "cancelling intersection check"
-        // this.intersectionCheckId
-      );
       cancelAnimationFrame(this.cancelIntersectionCheck());
+
+      const target = this.intersection || this.homeElement;
+
+      let payload = {
+        position: this.dragPosition,
+        target,
+        sourceId: this.base.id,
+        targetId: target.id
+      };
+
+      log("onMouseUp", payload);
+
+      emitter.emit("/dnd/end", payload);
     };
 
     onMouseMove = evt => {
       const { pageX, pageY } = evt;
-      const parentRect = this.base.parentNode.getBoundingClientRect();
-      let parentX = 0; //parentRect.left - 3;
-      let parentY = 0; //parentRect.top -3 ;
-      let tx = pageX - parentX - this.offX;
-      let ty = pageY - parentY - this.offY;
+      let tx = pageX - this.offX;
+      let ty = pageY - this.offY;
 
-      // this.base.dataset.pos = [tx, ty];
       this.dragPosition = [tx, ty];
-      this.scheduleUpdate(this.base, tx, ty);
+      this.scheduleUpdateTransform(this.base, tx, ty);
     };
 
-    constructor(props) {
-      super(props);
-    }
-
     componentDidMount() {
-      this.scheduleUpdate = rafSchedule(updateNodeTransform);
+      // rafSchedule throttles calls to updateTransform
+      this.scheduleUpdateTransform = rafSchedule(updateTransform);
     }
 
     componentWillUnmount() {
-      this.scheduleUpdate.cancel();
+      this.scheduleUpdateTransform.cancel();
     }
 
     render() {
@@ -93,43 +108,61 @@ export function withDragAndDrop(WrappedComponent, options = {}) {
   };
 }
 
-function runIntersectionCheck(dragElement, dropElements, drag) {
+/**
+ * Begins a rAF based loop to check for intersections between the
+ * dragElement and the specified dropElements
+ *
+ * @param {Object} dragElement - the element being dragged
+ * @param {Object} dropElements
+ * @param {Object} dndObj - object which contains a reference to the current position
+ */
+function runIntersectionCheck(dragElement, dropElements, dndObj) {
   let frameId = 0;
   let then = performance.now();
   const interval = 1000 / INTERSECTION_FPS;
   const tolerance = 0.1;
   let intersectingElement;
 
+  log("runIntersectionCheck", dragElement);
+
   const loop = now => {
     frameId = requestAnimationFrame(loop);
     const delta = now - then;
 
-    if (delta >= interval - tolerance) {
-      then = now - delta % interval;
+    if (delta < interval - tolerance) {
+      return;
+    }
 
-      if (intersectingElement) {
+    then = now - delta % interval;
+
+    let newIntersectingElement = findIntersecting(
+      dragElement,
+      dropElements,
+      dndObj.dragPosition
+    );
+
+    // deal with previous intersection
+    if (intersectingElement) {
+      if (!newIntersectingElement) {
+        emitter.emit("/dnd/leave", dragElement, intersectingElement);
         removeClass(intersectingElement, "highlight");
+        dndObj.intersection = intersectingElement = null;
+      } else if (intersectingElement === newIntersectingElement) {
+        // still intersecting with the same element
+        return;
       }
+    }
 
-      intersectingElement = findIntersecting(
-        dragElement,
-        dropElements,
-        drag.dragPosition
-      );
-
-      if (intersectingElement) {
-        addClass(intersectingElement, "highlight");
-        console.log(
-          "runIntersectionCheck",
-          drag.dragPosition,
-          // dragElement,
-          intersectingElement
-        );
-      }
+    // TODO: replace this with a event dispatch
+    if (newIntersectingElement) {
+      dndObj.intersection = intersectingElement = newIntersectingElement;
+      emitter.emit("/dnd/enter", dragElement, intersectingElement);
+      addClass(intersectingElement, "highlight");
     }
   };
 
   const cancel = () => {
+    removeClass(intersectingElement, "highlight");
     cancelAnimationFrame(frameId);
     frameId = null;
   };
@@ -142,11 +175,14 @@ function runIntersectionCheck(dragElement, dropElements, drag) {
 /**
  * Determines which is our 'home' element and which are the targets we
  * are interested in dropping to
+ *
+ * @returns {Object}
  */
 function initialiseDropTargets(element, parentClass, dropClass) {
   // find the parent which contains our drop targets
   const parent = findParentWithClass(element, parentClass);
-  log("initialiseDropTargets", parent);
+
+  // log("initialiseDropTargets", parent);
   // determine where the drop targets are
   const dropElements = parent.getElementsByClassName(dropClass);
 
@@ -166,6 +202,10 @@ function initialiseDropTargets(element, parentClass, dropClass) {
 
 /**
  *
+ * @param {Object} element -
+ * @param {Object[]} candidates - an array of elements to intersect against
+ * @param {Object} position - an override for the elements position
+ * @return {Object} - the 'candidates' element that intersects 'element'
  */
 function findIntersecting(element, candidates, position) {
   let elRect = getBoundClientRectFromAttribute(element);
@@ -220,38 +260,15 @@ function doesOverlap(rectA, rectB, debug = false) {
   return xOverlap && yOverlap;
 }
 
-function valueInRange(value, min, max) {
-  return value >= min && value <= max;
-}
-
 function getBoundClientRectFromAttribute(element) {
-  let attr = element.getAttribute("boundingClientRect");
-  return attr.split(",").map(n => parseFloat(n));
-}
-
-/**
- * https://stackoverflow.com/a/22119674/2377677
- */
-function findParentWithClass(element, parentClass) {
-  while (
-    (element = element.parentElement) &&
-    !element.classList.contains(parentClass)
-  );
-  return element;
-}
-
-function updateNodeTransform(node, x, y) {
-  node.style.transform = `translate3d(${x}px, ${y}px, 0)`;
-}
-
-function addClass(element, className) {
-  element.classList.add(className);
-}
-
-function removeClass(element, className) {
-  element.classList.remove(className);
-}
-
-function log(tag, ...args) {
-  console.log(`[withDragAndDrop][${tag}]`, ...args);
+  // let attr = element.getAttribute("boundingClientRect");
+  // let result = attr.split(",").map(n => parseFloat(n));
+  // log(
+  //   "getBoundClientRectFromAttribute",
+  //   result,
+  //   element.getBoundingClientRect()
+  // );
+  // return result;
+  let { x, y, width, height } = element.getBoundingClientRect();
+  return [x, y, width, height];
 }
