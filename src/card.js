@@ -18,48 +18,56 @@ class CardComponent extends Component {
   componentDidUpdate(previousProps) {
     // see https://medium.com/developers-writing/animating-the-unanimatable-1346a5aab3cd
     // see https://aerotwist.com/blog/flip-your-animations/#the-general-approach
-    this._performAnimation(previousProps);
+    this._performAnimation();
   }
 
-  _performAnimation(previousProps) {
-    const { transitionPosition } = this.props;
+  _performAnimation() {
+    const { delay = 0, position, time = 250, transitionPosition } = this.props;
+    const domNode = this.base;
+
     if (!isPositionValid(transitionPosition)) {
       return;
     }
 
-    // let [px, py] = _mapPosition(previousProps.position);
-    let [px, py] = _mapPosition(transitionPosition);
-    let pos = _mapPosition(this.props.position);
-    // let pos = _mapPosition(this.props.target);
+    let [px, py] = transitionPosition;
+    let [tx, ty] = position;
 
-    // log("_performAnimation", "from", transitionPosition, [px, py], "to", pos);
+    // log("_performAnimation", "from", transitionPosition, [px, py], "to", [tx,ty]);
 
-    let deltaX = px - pos[0];
-    let deltaY = py - pos[1];
+    let deltaX = px - tx;
+    let deltaY = py - ty;
 
     if (deltaX === 0 && deltaY === 0) {
       return;
     }
 
-    // log("_performAnimation", "delta", deltaX, deltaY, this.props);
-    const domNode = this.base;
-
-    const delay = this.props.delay || 0;
-    const time = this.props.time || 250;
-
     requestAnimationFrame(() => {
       // first update moves the card back to its original position
-      // console.log("[Card][componentDidUpdate]", "pPos", pPos);
-      domNode.style.transform = `translate3d(${px}px, ${py}px, 0)`;
-      domNode.style.transition = "transform 0s";
+      this._applyTransform(domNode, transitionPosition);
+      this._applyTransition(domNode);
 
       requestAnimationFrame(() => {
         // next update animates the card to its new position
-        // console.log("[Card][componentDidUpdate]", "pos", pos);
-        domNode.style.transform = `translate3d(${pos[0]}px, ${pos[1]}px, 0)`;
-        domNode.style.transition = `transform ${time}ms ease-out ${delay}ms`;
+        this._applyTransform(domNode, position);
+        this._applyTransition(domNode, time, delay);
       });
     });
+  }
+
+  _applyTransform(node, pos, scale = 1.0) {
+    let [tx, ty] = _mapPosition(pos, scale);
+    const transform = `translate3d(${tx}px, ${ty}px, 0)`;
+    if (!node) {
+      // WebkitTransform: `translate3d(${mx}px, ${my}px, 0)`
+      return { transform };
+    }
+    node.style.transform = transform;
+  }
+
+  _applyTransition(node, time = 0, delay = 0, type = "ease-out") {
+    const transition =
+      time > 0 ? `transform ${time}ms ${type} ${delay}ms` : "transform 0s";
+    node.style.transition = transition;
   }
 
   render() {
@@ -68,18 +76,13 @@ class CardComponent extends Component {
     const width = CARD_WIDTH * scale;
     const height = CARD_HEIGHT * scale;
 
-    let [mx, my] = _mapPosition(position, scale);
-
     const style = {
       width,
       height,
       left: 0,
       top: 0,
-      WebkitTransform: `translate3d(${mx}px, ${my}px, 0)`,
-      transform: `translate3d(${mx}px, ${my}px, 0)`
+      ...this._applyTransform(null, position, scale)
     };
-
-    const viewBox = [0, 0, 90, 125];
 
     return (
       <div
@@ -89,7 +92,7 @@ class CardComponent extends Component {
         onClick={evt => (onClick ? onClick.call(onClick, this, evt) : null)}
         onTransitionEnd={this._onTransitionEnd}
       >
-        <PureCard viewBox={viewBox} />
+        <PureCard />
       </div>
     );
   }
@@ -100,10 +103,8 @@ class PureCard extends Component {
     return false;
   }
   render() {
-    let { viewBox } = this.props;
-    viewBox = viewBox.join(" ");
     return (
-      <svg viewBox={viewBox}>
+      <svg viewBox="0 0 90 125">
         <path d="M4.156 4.693H85.15v116.275H4.155V4.693z" fill="#FFF" />
         <path d="M75.31 0H14.687C6.623 0 .227 6.535.227 14.46v96.08c0 8.064 6.535 14.46 14.46 14.46H75.31c8.065 0 14.46-6.535 14.46-14.46V14.46C89.91 6.536 83.376 0 75.31 0zm9.872 110.68c0 5.42-4.45 9.732-9.733 9.732H14.686c-5.422 0-9.733-4.45-9.733-9.733V14.46c0-5.422 4.45-9.733 9.733-9.733H75.31c5.423 0 9.733 4.45 9.733 9.734v96.22z" />
         <path
