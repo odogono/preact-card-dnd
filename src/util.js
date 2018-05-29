@@ -5,11 +5,13 @@ export function createLog(subject, isEnabled = true) {
   return (tag, ...args) => console.log(`[${subject}][${tag}]`, ...args);
 }
 
+export const POSITION_NULL = [-100, -100];
+
 /**
  * Returns true if the given position is valid
  */
 export function isPositionValid(pos) {
-  if (pos === undefined) {
+  if (pos === undefined || pos === POSITION_NULL) {
     return false;
   }
   const [x, y] = pos;
@@ -76,4 +78,18 @@ export function removeClass(element, className) {
   if (element) {
     element.classList.remove(className);
   }
+}
+
+/**
+ * Converts an array of objects to a map, using the objects
+ * key property as the results key
+ * @param {[]} array
+ * @param {string} key
+ * @return {Object} - the converted object
+ */
+export function arrayToMap(array = [], key = "id") {
+  return array.reduce((result, item) => {
+    result[item[key]] = item;
+    return result;
+  }, {});
 }

@@ -4,10 +4,10 @@ import { Card } from "./card";
 import Placeholder from "./placeholder";
 import { CardTable } from "./card_table";
 import { emitter } from "./events";
-import { createLog, isPositionValid } from "./util";
+import { arrayToMap, createLog, isPositionValid, POSITION_NULL } from "./util";
 import { withDragAndDrop } from "./with_dnd";
 
-const log = createLog("App", false);
+const log = createLog("App", true);
 
 const DnDCard = withDragAndDrop(Card, {
   parentContainerClass: "card-table",
@@ -38,25 +38,35 @@ export default class App extends Component {
   _onCardDragEnd = ({ position, sourceId, targetId }) => {
     // given the final position of the card, plus the target to which it should return
 
-    let { cards, placeholders } = this.state;
-    let card = cards[sourceId];
-    let placeholder = placeholders[targetId];
+    // let { placeholders } = this.state;
+    // let placeholder = placeholders[targetId];
 
-    // log("_onCardDragEnd", { placeholder });
-
-    card = {
-      ...card,
+    this._updateCard(sourceId, {
       placeholder: targetId,
       // this is the 'from'
-      transitionPosition: position,
-      // ... and this is the 'to'
-      position: placeholder.boundingClientRect
-    };
+      transitionPosition: position
+      // ... and this is the 'to' - which we don't need to set, because in the abscence of
+      // a valid position, the placeholder position is used
+      // position: placeholder.boundingClientRect
+    });
+  };
 
-    // card = {...card, position };
-    // log("_onCardDragEnd", sourceId, "->", targetId, position, card);
+  _onCardTransitionEnd = (cardId, card) => {
+    log("_onCardTransitionEnd", "card", cardId);
 
-    this.setState({ cards: { ...cards, [sourceId]: card } });
+    this._updateCard(cardId, {
+      position: POSITION_NULL,
+      transitionPosition: POSITION_NULL
+    });
+  };
+
+  _updateCard = (cardId, values) => {
+    let { cards } = this.state;
+    let card = cards[cardId];
+
+    let update = { ...card, ...values };
+
+    this.setState({ cards: { ...cards, [cardId]: update } });
   };
 
   /**
@@ -69,22 +79,22 @@ export default class App extends Component {
   /**
    *
    */
-  _updatePlaceholder = placeholder => {
+  _updatePlaceholder = (placeholder, boundingClientRect) => {
     const placeholderId = placeholder.props.id;
     let { placeholders } = this.state;
 
     let model = placeholders[placeholderId];
-    model = { ...model, boundingClientRect: placeholder.boundingClientRect };
+    model = { ...model, boundingClientRect };
     placeholders = { ...placeholders, [placeholderId]: model };
 
-    log("_updatePlaceholder", placeholderId, placeholder.boundingClientRect);
+    log("_updatePlaceholder", placeholderId, boundingClientRect);
 
     this.setState({ placeholders });
   };
 
   state = {
     cards: arrayToMap([
-      { id: "c1", placeholder: "ph2", position: [0, 0], target: [0, 0] }
+      { id: "c1", placeholder: "ph2", position: POSITION_NULL }
     ]),
     placeholders: arrayToMap([{ id: "ph1" }, { id: "ph2" }, { id: "ph3" }])
   };
@@ -130,6 +140,7 @@ export default class App extends Component {
       let phProps = {
         ...ph,
         onClick: this._onPlaceholderClick,
+        // listen to changes in position/dimensions - mostly down to the window resizing
         onBoundingClientRectUpdate: this._updatePlaceholder
       };
       return <Placeholder {...phProps} />;
@@ -162,26 +173,24 @@ export default class App extends Component {
       }
 
       let position = c.position;
-      let target = c.target;
 
       if (!isPositionValid(position)) {
-        target = position = placeholder.boundingClientRect;
+        position = placeholder.boundingClientRect;
       }
 
+      let cardProps = {
+        ...c,
+        position,
+        onTransitionEnd: this._onCardTransitionEnd
+      };
+
       // let position = placeholder.boundingClientRect;
-      log("_renderCards", "rendering to", c.id, c);
-      return <DnDCard {...c} position={position} />;
+      // log("_renderCards", "rendering to", c.id, c);
+      return <DnDCard {...cardProps} />;
     });
   }
 }
 
 if (typeof window !== "undefined") {
   render(<App />, document.getElementById("root"));
-}
-
-function arrayToMap(array = [], key = "id") {
-  return array.reduce((result, item) => {
-    result[item[key]] = item;
-    return result;
-  }, {});
 }

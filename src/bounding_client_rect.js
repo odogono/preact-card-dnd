@@ -15,32 +15,23 @@ export function withBoundingClientRect(WrappedComponent) {
       if (x === 0 && y === 0 && width === 0 && height === 0) {
         return;
       }
-      let parent = this.base.parentElement;
-      let parentRect = parent.getBoundingClientRect();
 
       let boundingClientRect = [x, y, width, height];
-      // boundingClientRect[0] -= parentRect.x;
-      // boundingClientRect[1] -= parentRect.y;
-      this.boundingClientRect = boundingClientRect;
-      // let boundingClientRectP = [...boundingClientRect];
-
-      // log("_updateDimensions", boundingClientRect, this.base, parent);
 
       this.setState({ boundingClientRect });
 
       if (this.props.onBoundingClientRectUpdate) {
-        this.props.onBoundingClientRectUpdate(this);
+        this.props.onBoundingClientRectUpdate(this, boundingClientRect);
       }
     };
 
     componentDidMount() {
       window.addEventListener("resize", this._updateDimensions);
-      // console.log("[BoundingClientRectComponent][componentDidMount]", this.ref);
       this._updateDimensions();
     }
 
     componentWillUnmount() {
-      window.removeEventListener("resize", this._updateDimension);
+      window.removeEventListener("resize", this._updateDimensions);
     }
 
     render() {

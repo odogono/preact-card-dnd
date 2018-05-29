@@ -13,6 +13,10 @@ class CardComponent extends Component {
   _onTransitionEnd = evt => {
     // clear the transition here so that further DOM manipulations are not affected
     this.base.style.transition = "transform 0s";
+
+    if (this.props.onTransitionEnd) {
+      this.props.onTransitionEnd(this.props.id, this.props);
+    }
   };
 
   componentDidUpdate(previousProps) {
@@ -32,7 +36,10 @@ class CardComponent extends Component {
     let [px, py] = transitionPosition;
     let [tx, ty] = position;
 
-    // log("_performAnimation", "from", transitionPosition, [px, py], "to", [tx,ty]);
+    log("_performAnimation", "from", transitionPosition, [px, py], "to", [
+      tx,
+      ty
+    ]);
 
     let deltaX = px - tx;
     let deltaY = py - ty;
